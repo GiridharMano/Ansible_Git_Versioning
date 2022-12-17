@@ -1,5 +1,4 @@
 # Ansible_Git_Versioning
-
 Role Name
 =========
 
