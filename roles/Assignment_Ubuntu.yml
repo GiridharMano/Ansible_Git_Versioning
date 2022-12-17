@@ -1,0 +1,55 @@
+---
+- hosts: all
+
+  vars:
+    UBUNTU_COMMON_ROOT_PASSWORD: 'Babby@2023'
+    UBUNTU_COMMON_DEPLOY_PASSWORD: 'Deploy@143'
+    ubuntu_common_deploy_user_name: deploy
+
+    ubuntu_common_ssh_port: 22
+
+  tasks:
+    - name: Change root password
+      user: name=root password="{{ UBUNTU_COMMON_ROOT_PASSWORD }}"
+
+    - name: Add deploy user
+      user: name={{ ubuntu_common_deploy_user_name }} password="{{ UBUNTU_COMMON_DEPLOY_PASSWORD }}" shell=/bin/bash
+
+    - name: Add Authorized keys for deploy user
+      authorized_key: user={{ ubuntu_common_deploy_user_name }} key="{{ lookup('file', '/home/deploy/.ssh/id_rsa.pub') }}" state=present 
+
+    - name: Add test user to sudoers
+      lineinfile: dest=/etc/sudoers
+                  regexp="{{ ubuntu_common_deploy_user_name }} ALL"
+                  line="{{ ubuntu_common_deploy_user_name }} ALL=(ALL) ALL"
+                  state=present
+
+    - name: Update APT package cache
+      apt: update_cache=yes cache_valid_time=3600
+
+    - name: Upgrade APT to the latest packages
+      apt: upgrade=safe
+
+    - name: Setup ufw
+      ufw: state=enabled policy=deny
+
+    - name: Allow ssh traffic
+      ufw: rule=allow port={{ ubuntu_common_ssh_port }} proto=tcp
+
+    - name: Change ssh port
+      lineinfile: dest=/etc/ssh/sshd_config
+                  regexp="^Port\s"
+                  line="Port {{ ubuntu_common_ssh_port }}"
+                  state=present
+      notify: Restart ssh
+
+    - name: Disallow root SSH access
+      lineinfile: dest=/etc/ssh/sshd_config
+                  regexp="^PermitRootLogin"
+                  line="PermitRootLogin no"
+                  state=present
+      notify: Restart ssh
+
+  handlers:
+    - name: Restart ssh
+      service: name=ssh state=restarted

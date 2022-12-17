@@ -1,0 +1,11 @@
+---
+- hosts: all
+  tasks:
+    - name: Change root password
+      user: name=root password="Babby@143"
+
+    - name: Add test user
+      user: name=test password="Test@143" shell=/bin/bash
+
+    - name: Deploy Public Key
+      ansible.posix.authorized_key: user=test key="{{ lookup('file', '/home/test/.ssh/id_rsa.pub') }}" state=present
